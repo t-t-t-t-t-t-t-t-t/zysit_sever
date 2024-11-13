@@ -9,6 +9,7 @@ var app = require('../app');//导入app
 var debug = require('debug')('zysit-server:server');
 var http = require('http');
 
+require("../config/db.config")// 在入口引入数据库连接
 /**
  * Get port from environment and store in Express.
  */

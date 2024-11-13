@@ -4,7 +4,11 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-const UserRoute = require('./routes/admin/UserRouter')
+const adminRouter = require('./routes/adminRouter')
+const webRouter = require('./routes/webRouter')
+
+
+const JWT = require('./utils/JWT');
 
 
 var app = express();
@@ -19,8 +23,35 @@ app.use(express.urlencoded({ extended: false }));// urlendoded
 app.use(cookieParser());//
 app.use(express.static(path.join(__dirname, 'public')));// 静态资源设置
 
+
+app.use((req, res, next) => {// token校验中间件
+  if (req.url === '/adminApi/user/login' || req.url == '/adminApi/user/setAdminUser' || req.url.includes('/webApi')) {//login放行
+    next()
+    return;
+  }
+  const token = req.headers["authorization"]
+  if (token) {
+    const payload = JWT.verify(token)
+    if (payload) {  // 如果token有效,next通过
+      const newToken = JWT.generate({ _id: payload._id, userName: payload.userName }, '1d')// 访问过一次重新生成token
+      res.header("authorization", newToken)
+      next();
+      return;
+    } else {  //如果token失效,返回401
+      return res.status(401).send({
+        msg: "无效token",
+      })
+    }
+  } else {
+    return res.status(401).send({
+      msg: "无token",
+    })
+  }
+})
 // 引入路由
-app.use(UserRoute)
+app.use("/adminApi", adminRouter)
+app.use("/webApi", webRouter)
+
 
 
 // catch 404 and forward to error handler
@@ -37,7 +68,9 @@ app.use(function (err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.send({
+    msg: "路径访问错误"
+  })
 });
 
 module.exports = app;
